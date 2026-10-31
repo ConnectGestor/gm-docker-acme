@@ -1,0 +1,55 @@
+# Nuvem do GoManager na VPS. Sem build: a imagem vem do GitHub Actions do repositório GoManager.
+# APP_IMAGE (no .env) escolhe o canal: :main (cada commit no main) ou :latest (cada tag v*.*.*).
+services:
+  caddy:
+    container_name: gomanager-caddy
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      EMAIL: ${EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    container_name: gomanager-app
+    image: ${APP_IMAGE:-ghcr.io/connectgestor/gomanager-app:main}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@db:5432/app
+      SEGREDO: ${SEGREDO}
+      SESSAO_HORAS: "12"
+      ADMIN_USUARIO: ${ADMIN_USUARIO}
+      TOKEN_EMPRESA: ${TOKEN_EMPRESA}
+      EMPRESA_NOME: ${EMPRESA_NOME}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    container_name: gomanager-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: app
+    volumes:
+      - pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pg:
+  caddy_data:
+  caddy_config:

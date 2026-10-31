@@ -1,0 +1,6 @@
+# Segredos ficam so na VPS. Nunca versionar.
+.env
+*.env
+*.sql
+*.pem
+*.key
